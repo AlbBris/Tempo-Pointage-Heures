@@ -13,9 +13,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Extraire le bundle de l'application
         run: |
-          base64 -d tempo_bundle.b64 > /tmp/tempo.tar.gz
-          tar -xzf /tmp/tempo.tar.gz
-          rm tempo_bundle.b64
+          cat tempo_part_* > /tmp/tempo_bundle.b64
+          base64 -d /tmp/tempo_bundle.b64 > /tmp/tempo.tar.xz
+          tar -xJf /tmp/tempo.tar.xz
+          rm tempo_bundle.b64 tempo_part_*
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
