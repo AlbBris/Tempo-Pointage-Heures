@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1b292e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Tempo">
+  <meta name="description" content="Pointage personnel des heures de travail, congés et bilans.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="xlsx-lite.js"></script>
+  <script defer src="app.js"></script>
+  <title>Tempo — Mes heures</title>
+</head>
+<body>
+  <div class="site">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><span>◷</span></div>
+        <div><div class="brand-name">tempo<span>.</span></div><div class="brand-subtitle">Mon temps de travail</div></div>
+      </div>
+      <button id="topSettings" class="icon-button" title="Réglages" aria-label="Ouvrir les réglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.8 1.8 0 0 0 .4 2l-1.7 1.7a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1.1 1.6H9a1.8 1.8 0 0 0-1.1-1.6 1.8 1.8 0 0 0-2 .4L4.2 17a1.8 1.8 0 0 0 .4-2A1.8 1.8 0 0 0 3 13.9v-3.8A1.8 1.8 0 0 0 4.6 9a1.8 1.8 0 0 0-.4-2L5.9 5.3a1.8 1.8 0 0 0 2 .4A1.8 1.8 0 0 0 9 4.1h6a1.8 1.8 0 0 0 1.1 1.6 1.8 1.8 0 0 0 2-.4L19.8 7a1.8 1.8 0 0 0-.4 2 1.8 1.8 0 0 0 1.6 1.1v3.8a1.8 1.8 0 0 0-1.6 1.1Z"/></svg></button>
+    </header>
+
+    <main class="main">
+      <section id="todayView" class="view active" aria-label="Aujourd'hui">
+        <div class="section-intro"><div><p class="eyebrow">TABLEAU DE BORD</p><h1>Aujourd’hui <span class="sun">✳</span></h1><p class="subtle" id="todayDate">—</p></div><span class="date-flag" id="todayFlag">—</span></div>
+        <div class="hero">
+          <div class="hero-upper"><div><p class="hero-label">MA JOURNÉE</p><h2 id="workStatus">Pas encore commencée</h2></div><span id="liveBadge" class="live-badge">À pointer</span></div>
+          <div class="work-time" id="liveWorked">0<span>h</span>00</div>
+          <p class="work-time-caption">temps travaillé aujourd’hui</p>
+          <div class="timeline" id="todayTimeline"></div>
+          <div class="hero-bottom">
+            <button class="btn btn-orange btn-large" id="punchButton">Pointer mon arrivée <span aria-hidden="true">↗</span></button>
+            <button class="btn btn-outline-dark hidden" id="skipLunchButton">Terminer sans pause</button>
+            <button class="edit-inline" id="editTodayButton">✎ Corriger les horaires</button>
+          </div>
+        </div>
+        <div class="dash-grid">
+          <article class="metric"><p>CETTE SEMAINE</p><strong id="todayWeekHours">0h00</strong><small id="todayWeekTarget">Objectif : 39h</small></article>
+          <article class="metric"><p>SOLDE À DATE</p><strong id="todayWeekBalance">+0h00</strong><small>estimatif, avec absences assimilées</small></article>
+        </div>
+        <div class="block-head"><div><p class="eyebrow">DERNIÈRES JOURNÉES</p><h3>Historique récent</h3></div><button class="light-link" id="historyLink">Tout voir →</button></div>
+        <div id="recentDays" class="day-list"></div>
+      </section>
+
+      <section id="calendarView" class="view" aria-label="Calendrier">
+        <div class="section-intro"><div><p class="eyebrow">MES POINTAGES</p><h1>Calendrier</h1><p class="subtle">Consulter et corriger chaque journée.</p></div></div>
+        <div class="month-toolbar"><button class="month-arrow" id="calPrev" aria-label="Mois précédent">‹</button><button class="month-label" id="calMonthButton">Octobre 2026 <span>⌄</span></button><button class="month-arrow" id="calNext" aria-label="Mois suivant">›</button><input type="month" id="calMonthInput" class="hidden" aria-label="Mois affiché"></div>
+        <section class="calendar-card"><div class="calendar-grid" id="calendarGrid"></div><div class="legend"><span><i class="legend-dot work-dot"></i>Travail</span><span><i class="legend-dot leave-dot"></i>Absence</span><span><i class="legend-dot active-dot"></i>Aujourd'hui</span></div></section>
+        <div class="quick-actions"><button class="btn btn-dark" id="newDayButton">＋ Ajouter / corriger</button><button class="btn btn-light" id="newPeriodButton">▦ Déclarer une période</button></div>
+        <div class="block-head"><div><p class="eyebrow">JOUR PAR JOUR</p><h3 id="journalTitle">Journées du mois</h3></div></div>
+        <div id="monthDays" class="day-list"></div>
+      </section>
+
+      <section id="reportsView" class="view" aria-label="Bilans">
+        <div class="section-intro"><div><p class="eyebrow">BILANS</p><h1>Mes heures</h1><p class="subtle">Suivi hebdomadaire et mensuel.</p></div></div>
+        <div class="month-toolbar"><button class="month-arrow" id="reportPrev" aria-label="Mois précédent">‹</button><button class="month-label" id="reportMonthButton">Octobre 2026 <span>⌄</span></button><button class="month-arrow" id="reportNext" aria-label="Mois suivant">›</button><input type="month" id="reportMonthInput" class="hidden" aria-label="Mois du bilan"></div>
+        <div class="report-grid">
+          <article class="report-box primary-report"><p>HEURES TRAVAILLÉES</p><strong id="reportWorked">0h00</strong><small>Temps pointé sur le mois</small></article>
+          <article class="report-box"><p>JOURS D'ABSENCE</p><strong id="reportLeave">0</strong><small>Congés, RTT, école et autres</small></article>
+          <article class="report-box"><p>CRÉDIT D'ABSENCE</p><strong id="reportCredit">0h00</strong><small>Selon vos réglages</small></article>
+          <article class="report-box"><p>SOLDE INDICATIF</p><strong id="reportBalance">+0h00</strong><small id="reportTargetText">Référence : 0h00</small></article>
+        </div>
+        <div class="block-head"><div><p class="eyebrow">DÉTAIL DES SEMAINES</p><h3>Vue hebdomadaire</h3></div></div>
+        <div id="weeklyBreakdown" class="week-list"></div>
+        <div class="export-card"><div class="export-icon">↗</div><div><h3>Exporter mes pointages</h3><p>Fichier Excel avec toutes les journées du mois et une synthèse.</p></div><button class="btn btn-orange" id="excelExport">Exporter .xlsx</button></div>
+      </section>
+
+      <section id="settingsView" class="view" aria-label="Réglages">
+        <div class="section-intro"><div><p class="eyebrow">PERSONNALISATION</p><h1>Réglages</h1><p class="subtle">Adapter l’application à ton rythme de travail.</p></div></div>
+        <section class="panel settings-panel"><h3>Temps de référence</h3><label class="form-label" for="weeklyHours">Durée hebdomadaire contractuelle (heures)</label><input class="field" id="weeklyHours" type="number" min="1" max="80" step="0.5" value="39"><p class="help">La référence est répartie sur 5 jours du lundi au vendredi. Le solde est indicatif : ce n'est pas un calcul légal d'heures supplémentaires.</p><label class="toggle-row" for="creditSchool"><span><strong>Assimiler les jours d’école</strong><small>Compter une journée d'école comme une journée de référence dans le solde</small></span><input type="checkbox" id="creditSchool" checked></label><label class="toggle-row" for="creditSick"><span><strong>Assimiler les arrêts maladie</strong><small>Option de suivi personnel, sans valeur juridique</small></span><input type="checkbox" id="creditSick"></label><button id="saveSettings" class="btn btn-dark">Enregistrer les réglages</button></section>
+        <section class="panel settings-panel"><h3>Sauvegarde et transfert</h3><p class="help">Toutes tes heures restent dans le navigateur de cet appareil. Un fichier de sauvegarde permet de les restaurer, notamment en changeant d’iPhone.</p><div class="stacked-actions"><button id="downloadBackup" class="btn btn-light">↓ Sauvegarder mes données (.json)</button><button id="restoreBackup" class="btn btn-light">↑ Restaurer une sauvegarde</button><input id="restoreFile" type="file" accept="application/json,.json" hidden></div></section>
+        <section class="panel settings-panel"><h3>Installer sur iPhone</h3><p class="help">Ouvre l’adresse de l’application dans Safari, puis <strong>Partager → Sur l’écran d’accueil</strong>. Pour une utilisation fiable hors ligne, ouvre une fois l’application quand tu as Internet.</p></section>
+        <p class="footnote">Tempo · V1 · Stockage local · Aucune donnée envoyée à un serveur.</p>
+      </section>
+    </main>
+  </div>
+
+  <nav class="mobile-nav" aria-label="Navigation">
+    <button class="nav-item active" data-view="todayView"><span class="nav-icon">◷</span><span>Aujourd’hui</span></button>
+    <button class="nav-item" data-view="calendarView"><span class="nav-icon">▦</span><span>Calendrier</span></button>
+    <button class="nav-item" data-view="reportsView"><span class="nav-icon">▥</span><span>Bilans</span></button>
+    <button class="nav-item" data-view="settingsView"><span class="nav-icon">⚙</span><span>Réglages</span></button>
+  </nav>
+
+  <dialog id="dayDialog" class="dialog">
+    <form id="dayForm" novalidate>
+      <div class="dialog-top"><div><p class="eyebrow">SAISIE MANUELLE</p><h2 id="dayDialogTitle">Une journée</h2></div><button class="close-btn" type="button" data-close="dayDialog" aria-label="Fermer">×</button></div>
+      <label class="form-label" for="entryDate">Date</label><input class="field" id="entryDate" type="date" required>
+      <label class="form-label" for="entryType">Type de journée</label><select class="field" id="entryType"><option value="work">Travail</option><option value="leave">Congé</option><option value="rtt">RTT</option><option value="school">École</option><option value="holiday">Férié</option><option value="sick">Maladie</option><option value="other">Autre absence</option></select>
+      <div id="workEntryFields"><div class="two-col"><div><label class="form-label" for="entryStart">Arrivée</label><input class="field" type="time" id="entryStart"></div><div><label class="form-label" for="entryEnd">Départ</label><input class="field" type="time" id="entryEnd"></div></div><div class="two-col"><div><label class="form-label" for="entryLunchStart">Début du repas</label><input class="field" type="time" id="entryLunchStart"></div><div><label class="form-label" for="entryLunchEnd">Fin du repas</label><input class="field" type="time" id="entryLunchEnd"></div></div><label class="form-label" for="entryManualPause">Ou pause totale saisie manuellement (minutes)</label><input class="field" type="number" min="0" max="720" step="5" id="entryManualPause" placeholder="Ex. 60 (si pas d'horaires de pause)"><p class="help">Les horaires de pause sont prioritaires sur la durée saisie. Laisse les champs de pause vides si tu n’en as pas pris.</p></div>
+      <label class="form-label" for="entryNote">Commentaire (facultatif)</label><textarea class="field" id="entryNote" rows="2" placeholder="Chantier, déplacement, remarque…"></textarea>
+      <p id="entryError" class="error-text hidden" role="alert"></p>
+      <div class="dialog-actions"><button class="btn btn-danger hidden" type="button" id="deleteDay">Supprimer</button><span class="grow"></span><button class="btn btn-light" type="button" data-close="dayDialog">Annuler</button><button class="btn btn-orange" type="submit">Enregistrer</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="periodDialog" class="dialog"><form id="periodForm" novalidate>
+    <div class="dialog-top"><div><p class="eyebrow">SAISIE GROUPÉE</p><h2>Déclarer une période</h2></div><button class="close-btn" type="button" data-close="periodDialog" aria-label="Fermer">×</button></div>
+    <label class="form-label" for="periodType">Type de journée</label><select class="field" id="periodType"><option value="leave">Congé</option><option value="rtt">RTT</option><option value="school">École</option><option value="holiday">Férié</option><option value="sick">Maladie</option><option value="other">Autre absence</option></select>
+    <div class="two-col"><div><label class="form-label" for="periodStart">Du</label><input type="date" class="field" id="periodStart" required></div><div><label class="form-label" for="periodEnd">Au</label><input type="date" class="field" id="periodEnd" required></div></div>
+    <label class="form-label" for="periodNote">Commentaire (facultatif)</label><input type="text" class="field" id="periodNote" placeholder="Ex. vacances">
+    <p class="help">Seuls les jours du lundi au vendredi sont ajoutés. Les journées déjà saisies nécessiteront ta confirmation pour être remplacées.</p><p id="periodError" class="error-text hidden" role="alert"></p>
+    <div class="dialog-actions"><span class="grow"></span><button type="button" class="btn btn-light" data-close="periodDialog">Annuler</button><button type="submit" class="btn btn-orange">Ajouter la période</button></div>
+  </form></dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

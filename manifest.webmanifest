@@ -1,0 +1,14 @@
+{
+  "name": "Tempo — Pointage des heures",
+  "short_name": "Tempo",
+  "description": "Suivi personnel des heures de travail, congés, RTT et bilans.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f6f2",
+  "theme_color": "#1b292e",
+  "icons": [
+    {"src":"icons/icon-192.png","sizes":"192x192","type":"image/png"},
+    {"src":"icons/icon-512.png","sizes":"512x512","type":"image/png"}
+  ]
+}
