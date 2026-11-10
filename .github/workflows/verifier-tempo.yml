@@ -1,0 +1,30 @@
+name: Vérifier le code de Tempo
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Vérifier la syntaxe JavaScript
+        run: |
+          node --check app.js
+          node --check xlsx-lite.js
+          node --check sw.js
+      - name: Vérifier les champs de saisie rapide
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          html = Path('index.html').read_text()
+          js = Path('app.js').read_text()
+          css = Path('style.css').read_text()
+          for item in ('entryStart', 'entryEnd', 'entryManualPause', 'pauseHoursMode', 'editorTotal', 'copyLastDay', 'dayForm'):
+              assert f'id="{item}"' in html, f'Champ absent : {item}'
+          for item in ('normalizeClock', 'refreshEditorTotal', 'copyPreviousDay', 'setPauseMode'):
+              assert f'function {item}(' in js, f'Fonction absente : {item}'
+          assert 'day-dialog' in css
+          assert 'tempo-pointage-v1-2' in Path('sw.js').read_text()
+          print('Vérification Tempo V1.2 : OK')
+          PY
