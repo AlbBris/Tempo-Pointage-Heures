@@ -36,7 +36,7 @@
           <div class="hero-bottom">
             <button class="btn btn-orange btn-large" id="punchButton">Pointer mon arrivée <span aria-hidden="true">↗</span></button>
             <button class="btn btn-outline-dark hidden" id="skipLunchButton">Terminer sans pause</button>
-            <button class="edit-inline" id="editTodayButton">✎ Corriger les horaires</button>
+            <button class="btn btn-quick-manual" id="editTodayButton">✎ Saisir / corriger mes heures</button>
           </div>
         </div>
         <div class="dash-grid">
@@ -87,15 +87,43 @@
     <button class="nav-item" data-view="settingsView"><span class="nav-icon">⚙</span><span>Réglages</span></button>
   </nav>
 
-  <dialog id="dayDialog" class="dialog">
+  <dialog id="dayDialog" class="dialog day-dialog">
     <form id="dayForm" novalidate>
-      <div class="dialog-top"><div><p class="eyebrow">SAISIE MANUELLE</p><h2 id="dayDialogTitle">Une journée</h2></div><button class="close-btn" type="button" data-close="dayDialog" aria-label="Fermer">×</button></div>
-      <label class="form-label" for="entryDate">Date</label><input class="field" id="entryDate" type="date" required>
-      <label class="form-label" for="entryType">Type de journée</label><select class="field" id="entryType"><option value="work">Travail</option><option value="leave">Congé</option><option value="rtt">RTT</option><option value="school">École</option><option value="holiday">Férié</option><option value="sick">Maladie</option><option value="other">Autre absence</option></select>
-      <div id="workEntryFields"><div class="two-col"><div><label class="form-label" for="entryStart">Arrivée</label><input class="field" type="time" id="entryStart"></div><div><label class="form-label" for="entryEnd">Départ</label><input class="field" type="time" id="entryEnd"></div></div><div class="two-col"><div><label class="form-label" for="entryLunchStart">Début du repas</label><input class="field" type="time" id="entryLunchStart"></div><div><label class="form-label" for="entryLunchEnd">Fin du repas</label><input class="field" type="time" id="entryLunchEnd"></div></div><label class="form-label" for="entryManualPause">Ou pause totale saisie manuellement (minutes)</label><input class="field" type="number" min="0" max="720" step="5" id="entryManualPause" placeholder="Ex. 60 (si pas d'horaires de pause)"><p class="help">Les horaires de pause sont prioritaires sur la durée saisie. Laisse les champs de pause vides si tu n’en as pas pris.</p></div>
-      <label class="form-label" for="entryNote">Commentaire (facultatif)</label><textarea class="field" id="entryNote" rows="2" placeholder="Chantier, déplacement, remarque…"></textarea>
-      <p id="entryError" class="error-text hidden" role="alert"></p>
-      <div class="dialog-actions"><button class="btn btn-danger hidden" type="button" id="deleteDay">Supprimer</button><span class="grow"></span><button class="btn btn-light" type="button" data-close="dayDialog">Annuler</button><button class="btn btn-orange" type="submit">Enregistrer</button></div>
+      <div class="dialog-top"><div><p class="eyebrow">POINTAGE MANUEL</p><h2 id="dayDialogTitle">Mes horaires</h2></div><button class="close-btn" type="button" data-close="dayDialog" aria-label="Fermer">×</button></div>
+      <div class="day-editor-content">
+        <div class="editor-meta-grid">
+          <div><label class="form-label" for="entryDate">Date</label><input class="field" id="entryDate" type="date" required></div>
+          <div><label class="form-label" for="entryType">Journée</label><select class="field" id="entryType"><option value="work">Travail</option><option value="leave">Congé</option><option value="rtt">RTT</option><option value="school">École</option><option value="holiday">Férié</option><option value="sick">Maladie</option><option value="other">Autre absence</option></select></div>
+        </div>
+        <div id="workEntryFields">
+          <div class="editor-section-heading"><strong>Horaires de travail</strong><span>Saisie rapide au clavier</span></div>
+          <div class="time-entry-grid">
+            <label><span class="form-label">Arrivée</span><input class="field hour-field" type="text" inputmode="numeric" autocomplete="off" maxlength="6" id="entryStart" placeholder="07:30" aria-label="Heure d'arrivée"></label>
+            <label><span class="form-label">Départ</span><input class="field hour-field" type="text" inputmode="numeric" autocomplete="off" maxlength="6" id="entryEnd" placeholder="17:00" aria-label="Heure de départ"></label>
+          </div>
+          <div class="pause-section">
+            <div class="pause-top"><strong>Pause déjeuner</strong><div class="pause-switch" role="group" aria-label="Saisie de la pause"><button type="button" id="pauseDurationMode" class="active" aria-pressed="true">Durée</button><button type="button" id="pauseHoursMode" aria-pressed="false">Horaires</button></div></div>
+            <div id="pauseDurationPanel">
+              <div class="pause-presets" role="group" aria-label="Durée de pause rapide">
+                <button type="button" data-pause="0">Aucune</button><button type="button" data-pause="30">30 min</button><button type="button" data-pause="45">45 min</button><button type="button" data-pause="60">1 h</button><button type="button" data-pause="90">1 h 30</button>
+              </div>
+              <div class="custom-pause-row"><label for="entryManualPause">Autre durée</label><div class="custom-pause-value"><input class="field" type="number" inputmode="numeric" min="0" max="720" step="5" id="entryManualPause" aria-label="Durée de pause en minutes"><span>min</span></div></div>
+              <p class="editor-hint">Une pause d’1 h est proposée pour une nouvelle journée. Modifie-la si besoin.</p>
+            </div>
+            <div id="pauseHoursPanel" class="hidden">
+              <div class="time-entry-grid">
+                <label><span class="form-label">Début du repas</span><input class="field hour-field" type="text" inputmode="numeric" autocomplete="off" maxlength="6" id="entryLunchStart" placeholder="12:00" aria-label="Début du repas"></label>
+                <label><span class="form-label">Fin du repas</span><input class="field hour-field" type="text" inputmode="numeric" autocomplete="off" maxlength="6" id="entryLunchEnd" placeholder="13:00" aria-label="Fin du repas"></label>
+              </div>
+            </div>
+          </div>
+          <div class="editor-total" id="editorTotal" aria-live="polite"><span>Temps travaillé</span><strong>—</strong></div>
+          <button type="button" id="copyLastDay" class="copy-day-button">↻ Reprendre les horaires de la dernière journée</button>
+        </div>
+        <details class="editor-details" id="entryNoteDetails"><summary>Ajouter un commentaire (facultatif)</summary><textarea class="field" id="entryNote" rows="2" placeholder="Chantier, déplacement, remarque…"></textarea></details>
+        <p id="entryError" class="error-text hidden" role="alert"></p>
+      </div>
+      <div class="dialog-actions"><button class="btn btn-danger hidden" type="button" id="deleteDay">Supprimer</button><button class="btn btn-orange save-entry-btn" type="submit">✓ Enregistrer la journée</button></div>
     </form>
   </dialog>
 
