@@ -199,27 +199,139 @@ function renderSettings(){
   $("creditSick").checked=!!state.settings.creditSick;
 }
 function renderAll(){renderToday();renderCalendar();renderReports();}
+let editorPauseMode="duration";
+function normalizeClock(value){
+  const raw=String(value||"").trim().toLowerCase().replace(/\s/g,"").replace("h",":");
+  if(!raw)return "";
+  let hh,mm;
+  if(raw.includes(":")){
+    const parts=raw.split(":");if(parts.length!==2||!parts[0]||!parts[1])return null;
+    hh=parts[0];mm=parts[1];
+  }else{
+    if(!/^\d{1,4}$/.test(raw))return null;
+    if(raw.length<=2){hh=raw;mm="00";}
+    else{hh=raw.slice(0,-2);mm=raw.slice(-2);}
+  }
+  if(!/^\d{1,2}$/.test(hh)||!/^\d{1,2}$/.test(mm))return null;
+  const h=Number(hh),m=Number(mm);
+  return h<24&&m<60?z(h)+":"+z(m):null;
+}
+function normalizeEditorTimes(){
+  for(const id of ["entryStart","entryEnd","entryLunchStart","entryLunchEnd"]){
+    const element=$(id),value=normalizeClock(element.value);
+    if(value!==null)element.value=value;
+  }
+}
+function setPauseMode(mode){
+  editorPauseMode=mode==="times"?"times":"duration";
+  const isHours=editorPauseMode==="times";
+  $("pauseDurationPanel").classList.toggle("hidden",isHours);
+  $("pauseHoursPanel").classList.toggle("hidden",!isHours);
+  $("pauseDurationMode").classList.toggle("active",!isHours);
+  $("pauseHoursMode").classList.toggle("active",isHours);
+  $("pauseDurationMode").setAttribute("aria-pressed",String(!isHours));
+  $("pauseHoursMode").setAttribute("aria-pressed",String(isHours));
+  refreshEditorTotal();
+}
+function refreshEditorTotal(){
+  const box=$("editorTotal");
+  if($("entryType").value!=="work"){box.classList.add("hidden");return;}
+  box.classList.remove("hidden");
+  const start=normalizeClock($("entryStart").value),end=normalizeClock($("entryEnd").value);
+  if(start===null||end===null){
+    box.innerHTML="<span>Vérifie les horaires (ex. 07:30)</span><strong>—</strong>";
+    box.classList.add("invalid");return;
+  }
+  if(!start||!end){
+    box.classList.remove("invalid");
+    box.innerHTML="<span>Temps travaillé</span><strong>À calculer</strong>";
+    return;
+  }
+  const s=minOf(start),e=minOf(end);
+  if(s===null||e===null||e<=s){
+    box.classList.add("invalid");box.innerHTML="<span>Le départ doit être après l’arrivée</span><strong>—</strong>";return;
+  }
+  let pause=0;
+  if(editorPauseMode==="times"){
+    const ls=normalizeClock($("entryLunchStart").value),le=normalizeClock($("entryLunchEnd").value);
+    if(ls===null||le===null||(!!ls!==!!le)){
+      box.classList.add("invalid");box.innerHTML="<span>Renseigne les deux horaires de repas</span><strong>—</strong>";return;
+    }
+    if(ls&&le){
+      if(minOf(ls)<=s||minOf(le)<=minOf(ls)||minOf(le)>=e){
+        box.classList.add("invalid");box.innerHTML="<span>Vérifie l’ordre des horaires</span><strong>—</strong>";return;
+      }
+      pause=minOf(le)-minOf(ls);
+    }
+  }else{
+    const raw=$("entryManualPause").value;
+    pause=raw===""?0:Number(raw);
+    if(!Number.isFinite(pause)||pause<0||pause>720){
+      box.classList.add("invalid");box.innerHTML="<span>Pause non valide</span><strong>—</strong>";return;
+    }
+  }
+  if(pause>=e-s){
+    box.classList.add("invalid");box.innerHTML="<span>Pause trop longue pour cette journée</span><strong>—</strong>";return;
+  }
+  const worked=e-s-pause,delta=worked-dailyRef();
+  box.classList.remove("invalid");
+  box.innerHTML="<span>Temps travaillé · écart indicatif "+duration(delta,true)+"</span><strong>"+duration(worked)+"</strong>";
+}
+function refreshPausePresets(){
+  const val=Number($("entryManualPause").value);
+  document.querySelectorAll("#dayDialog [data-pause]").forEach(el=>{
+    const active=$("entryManualPause").value!==""&&Number(el.dataset.pause)===val;
+    el.classList.toggle("selected",active);
+    el.setAttribute("aria-pressed",String(active));
+  });
+}
+function copyPreviousDay(){
+  const date=$("entryDate").value;
+  const previous=Object.keys(state.records).filter(d=>d<date&&state.records[d].type==="work"&&state.records[d].start&&state.records[d].end).sort().pop();
+  if(!previous){toast("Aucune journée précédente à copier.");return;}
+  const r=record(previous);
+  $("entryStart").value=r.start||"";$("entryEnd").value=r.end||"";
+  $("entryLunchStart").value=r.lunchStart||"";$("entryLunchEnd").value=r.lunchEnd||"";
+  $("entryManualPause").value=r.manualPause??0;
+  setPauseMode(r.lunchStart||r.lunchEnd?"times":"duration");
+  refreshPausePresets();refreshEditorTotal();
+  toast("Horaires copiés : vérifie-les avant d’enregistrer.");
+}
 function openDayEditor(date=today()){
-  const r=record(date)||startOfDayRecord(date);originalDialogDate=record(date)?date:null;
-  $("dayDialogTitle").textContent=record(date)?"Modifier la journée":"Ajouter une journée";
+  const existing=record(date),r=existing||startOfDayRecord(date);
+  originalDialogDate=existing?date:null;
+  $("dayDialogTitle").textContent=existing?"Modifier ma journée":"Ajouter une journée";
   $("entryDate").value=date;
-  $("entryDate").disabled=!!record(date);
+  $("entryDate").disabled=!!existing;
   $("entryType").value=r.type;
   $("entryStart").value=r.start||"";
   $("entryEnd").value=r.end||"";
   $("entryLunchStart").value=r.lunchStart||"";
   $("entryLunchEnd").value=r.lunchEnd||"";
-  $("entryManualPause").value=r.manualPause??"";
+  $("entryManualPause").value=r.manualPause??(existing?0:60);
   $("entryNote").value=r.note||"";
+  $("entryNoteDetails").open=!!r.note;
   $("entryError").classList.add("hidden");
-  $("deleteDay").classList.toggle("hidden",!record(date));
+  $("deleteDay").classList.toggle("hidden",!existing);
   toggleEditorFields();
-  $("dayDialog").showModal();
+  setPauseMode(r.lunchStart||r.lunchEnd?"times":"duration");
+  refreshPausePresets();refreshEditorTotal();
+  const previous=Object.keys(state.records).some(d=>d<date&&state.records[d].type==="work"&&state.records[d].start&&state.records[d].end);
+  $("copyLastDay").disabled=!previous;
+  if(!$("dayDialog").open)$("dayDialog").showModal();
 }
-function toggleEditorFields(){const isWork=$("entryType").value==="work";$("workEntryFields").classList.toggle("hidden",!isWork);}
-function editorError(msg){const el=$("entryError");el.textContent=msg;el.classList.remove("hidden");}
+function toggleEditorFields(){
+  const isWork=$("entryType").value==="work";
+  $("workEntryFields").classList.toggle("hidden",!isWork);
+  refreshEditorTotal();
+}
+function editorError(msg){
+  const el=$("entryError");el.textContent=msg;el.classList.remove("hidden");
+  el.scrollIntoView({block:"nearest",behavior:"smooth"});
+}
 function saveDay(event){
   event.preventDefault();$("entryError").classList.add("hidden");
+  normalizeEditorTimes();
   const date=$("entryDate").value,type=$("entryType").value;
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!LABELS[type]){editorError("Sélectionne une date et un type de journée valides.");return;}
   if(originalDialogDate&&date!==originalDialogDate){editorError("Pour déplacer cette journée, supprime d'abord l'ancienne puis crée la nouvelle.");return;}
@@ -227,18 +339,24 @@ function saveDay(event){
   if(type==="work"){
     r.start=$("entryStart").value;
     r.end=$("entryEnd").value;
-    r.lunchStart=$("entryLunchStart").value;
-    r.lunchEnd=$("entryLunchEnd").value;
-    const p=$("entryManualPause").value;
-    r.manualPause=p!==""?Number(p):null;
+    if(editorPauseMode==="times"){
+      r.lunchStart=$("entryLunchStart").value;
+      r.lunchEnd=$("entryLunchEnd").value;
+    }else{
+      const p=$("entryManualPause").value;
+      r.manualPause=p!==""?Number(p):null;
+    }
+    for(const value of [r.start,r.end,r.lunchStart,r.lunchEnd]){
+      if(value&&minOf(value)===null){editorError("Saisis les heures au format HH:MM, par exemple 07:30.");return;}
+    }
     const s=minOf(r.start),e=minOf(r.end),ls=minOf(r.lunchStart),le=minOf(r.lunchEnd);
     if(r.end&&!r.start){editorError("L'heure d'arrivée est obligatoire si tu renseignes un départ.");return;}
     if((r.lunchStart||r.lunchEnd)&&!r.start){editorError("Renseigne d'abord l'arrivée.");return;}
     if(r.lunchEnd&&!r.lunchStart){editorError("Renseigne le début de la pause repas.");return;}
     if(ls!==null&&ls<=s){editorError("Le repas doit commencer après l'arrivée.");return;}
-    if(le!==null&&le<=ls){editorError("La reprise doit suivre le début de repas.");return;}
-    if(e!==null&&s!==null&&e<=s){editorError("Le départ doit suivre l'arrivée (la V1 ne gère pas les nuits).");return;}
-    if(e!==null&&ls!==null&&le===null){editorError("Ajoute la reprise ou supprime le début de repas avant de saisir le départ.");return;}
+    if(le!==null&&le<=ls){editorError("La reprise doit suivre le début du repas.");return;}
+    if(e!==null&&s!==null&&e<=s){editorError("Le départ doit suivre l'arrivée (les nuits ne sont pas gérées).");return;}
+    if(e!==null&&ls!==null&&le===null){editorError("Renseigne la fin du repas ou utilise une durée de pause.");return;}
     if(e!==null&&le!==null&&e<=le){editorError("Le départ doit suivre la reprise.");return;}
     if(e!==null&&ls!==null&&e<=ls){editorError("Le départ doit suivre la pause.");return;}
     if(r.manualPause!==null&&(!Number.isFinite(r.manualPause)||r.manualPause<0||r.manualPause>720)){editorError("La pause doit être comprise entre 0 et 720 minutes.");return;}
@@ -361,7 +479,19 @@ function wire(){
   $("newPeriodButton").addEventListener("click",openPeriod);
   $("dayForm").addEventListener("submit",saveDay);
   $("entryType").addEventListener("change",toggleEditorFields);
-  $("entryDate").addEventListener("change",()=>{$("deleteDay").classList.toggle("hidden",!record($("entryDate").value));});
+  $("entryDate").addEventListener("change",()=>{$("deleteDay").classList.toggle("hidden",!record($("entryDate").value));$("copyLastDay").disabled=!Object.keys(state.records).some(d=>d<$("entryDate").value&&state.records[d].type==="work"&&state.records[d].start&&state.records[d].end);refreshEditorTotal();});
+  ["entryStart","entryEnd","entryLunchStart","entryLunchEnd"].forEach(id=>{
+    $(id).addEventListener("blur",()=>{const v=normalizeClock($(id).value);if(v!==null)$(id).value=v;refreshEditorTotal();});
+    $(id).addEventListener("input",refreshEditorTotal);
+  });
+  $("pauseDurationMode").addEventListener("click",()=>setPauseMode("duration"));
+  $("pauseHoursMode").addEventListener("click",()=>setPauseMode("times"));
+  $("entryManualPause").addEventListener("input",()=>{refreshPausePresets();refreshEditorTotal();});
+  document.querySelectorAll("#dayDialog [data-pause]").forEach(button=>button.addEventListener("click",()=>{
+    $("entryManualPause").value=button.dataset.pause;
+    refreshPausePresets();refreshEditorTotal();
+  }));
+  $("copyLastDay").addEventListener("click",copyPreviousDay);
   $("deleteDay").addEventListener("click",deleteDay);
   $("periodForm").addEventListener("submit",savePeriod);
   document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",()=>$(b.dataset.close).close()));
